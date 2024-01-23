@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -14,12 +15,14 @@ import (
 func GetPeople(w http.ResponseWriter, r *http.Request) {
 	people, err := db.GetPeople()
 	if err != nil {
+		log.Printf("Error retrieving people: %v", err)
 		http.Error(w, "Error retrieving people", http.StatusInternalServerError)
 		return
 	}
 
 	jsonData, err := json.MarshalIndent(people, "", "  ")
 	if err != nil {
+		log.Printf("Error encoding people data: %v", err)
 		http.Error(w, "Error encoding people data", http.StatusInternalServerError)
 		return
 	}
@@ -33,12 +36,14 @@ func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	personID, err := strconv.Atoi(params["id"])
 	if err != nil {
+		log.Printf("Invalid person ID: %v", err)
 		http.Error(w, "Invalid person ID", http.StatusBadRequest)
 		return
 	}
 
 	err = db.DeletePerson(personID)
 	if err != nil {
+		log.Printf("Error deleting person: %v", err)
 		http.Error(w, "Error deleting person", http.StatusInternalServerError)
 		return
 	}
@@ -62,18 +67,21 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 
 	age, err := getAge(personRequest.Name)
 	if err != nil {
+		log.Printf("Error getting age: %v", err)
 		http.Error(w, "Error getting age", http.StatusInternalServerError)
 		return
 	}
 
 	gender, err := getGender(personRequest.Name)
 	if err != nil {
+		log.Printf("Error getting gender: %v", err)
 		http.Error(w, "Error getting gender", http.StatusInternalServerError)
 		return
 	}
 
 	nationality, err := getNationality(personRequest.Name)
 	if err != nil {
+		log.Printf("Error getting nationality: %v", err)
 		http.Error(w, "Error getting nationality", http.StatusInternalServerError)
 		return
 	}
@@ -89,6 +97,7 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 
 	err = db.CreatePerson(&newPerson)
 	if err != nil {
+		log.Printf("Error creating person: %v", err)
 		http.Error(w, "Error creating person", http.StatusInternalServerError)
 		return
 	}
@@ -117,6 +126,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 
 	err = db.UpdatePerson(&updatedPerson)
 	if err != nil {
+		log.Printf("Error updating person: %v", err)
 		http.Error(w, "Error updating person", http.StatusInternalServerError)
 		return
 	}
@@ -128,6 +138,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 func getAge(name string) (int, error) {
 	resp, err := http.Get(fmt.Sprintf("https://api.agify.io/?name=%s", name))
 	if err != nil {
+		log.Printf("Error getting age for %s: %v", name, err)
 		return 0, err
 	}
 	defer resp.Body.Close()
@@ -140,6 +151,7 @@ func getAge(name string) (int, error) {
 
 	err = json.NewDecoder(resp.Body).Decode(&agifyResponse)
 	if err != nil {
+		log.Printf("Error decoding age response for %s: %v", name, err)
 		return 0, err
 	}
 
@@ -149,6 +161,7 @@ func getAge(name string) (int, error) {
 func getGender(name string) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("https://api.genderize.io/?name=%s", name))
 	if err != nil {
+		log.Printf("Error getting gender for %s: %v", name, err)
 		return "", err
 	}
 	defer resp.Body.Close()
@@ -161,6 +174,7 @@ func getGender(name string) (string, error) {
 	}
 	err = json.NewDecoder(resp.Body).Decode(&genderizeResponse)
 	if err != nil {
+		log.Printf("Error decoding gender response for %s: %v", name, err)
 		return "", err
 	}
 
@@ -170,6 +184,7 @@ func getGender(name string) (string, error) {
 func getNationality(name string) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("https://api.nationalize.io/?name=%s", name))
 	if err != nil {
+		log.Printf("Error getting nationality for %s: %v", name, err)
 		return "", err
 	}
 	defer resp.Body.Close()
@@ -184,6 +199,7 @@ func getNationality(name string) (string, error) {
 	}
 	err = json.NewDecoder(resp.Body).Decode(&nationalizeResponse)
 	if err != nil {
+		log.Printf("Error decoding nationality response for %s: %v", name, err)
 		return "", err
 	}
 
@@ -222,10 +238,18 @@ func Filter(w http.ResponseWriter, r *http.Request) {
 
 	people, err := db.FilterPeople(name, surname, patronymic, age, gender, nationality, page, pageSize)
 	if err != nil {
+		log.Printf("Error filtering people: %v", err)
 		http.Error(w, "Error filtering people", http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(people)
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "    ")
+	if err := encoder.Encode(people); err != nil {
+		log.Printf("Error encoding JSON: %v", err)
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+		return
+	}
 }

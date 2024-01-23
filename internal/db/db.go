@@ -28,9 +28,13 @@ func InitDB() {
 		log.Fatal("Error connecting to database:", err)
 	}
 
+	log.Println("Connected to the database")
+
 	if err := migrations.Migrate(db); err != nil {
 		log.Fatal("Error applying migrations:", err)
 	}
+
+	log.Println("Database migrations applied successfully")
 }
 
 func GetPeople() ([]model.Person, error) {
@@ -38,36 +42,44 @@ func GetPeople() ([]model.Person, error) {
 
 	result := db.Find(&people)
 	if result.Error != nil {
+		log.Printf("Error getting people: %v", result.Error)
 		return nil, result.Error
 	}
 
+	log.Printf("Retrieved people: %v", people)
 	return people, nil
 }
 
 func DeletePerson(personID int) error {
 	result := db.Where("id = ?", personID).Delete(&model.Person{})
 	if result.Error != nil {
+		log.Printf("Error deleting person with ID %d: %v", personID, result.Error)
 		return result.Error
 	}
 
+	log.Printf("Deleted person with ID %d successfully", personID)
 	return nil
 }
 
 func CreatePerson(person *model.Person) error {
 	result := db.Create(person)
 	if result.Error != nil {
+		log.Printf("Error creating person: %v", result.Error)
 		return result.Error
 	}
 
+	log.Printf("Created person with ID %d successfully", person.ID)
 	return nil
 }
 
 func UpdatePerson(updatedPerson *model.Person) error {
 	result := db.Save(updatedPerson)
 	if result.Error != nil {
+		log.Printf("Error updating person with ID %d: %v", updatedPerson.ID, result.Error)
 		return result.Error
 	}
 
+	log.Printf("Updated person with ID %d successfully", updatedPerson.ID)
 	return nil
 }
 
@@ -97,8 +109,10 @@ func FilterPeople(name, surname, patronymic string, age int, gender, nationality
 	offset := (page - 1) * pageSize
 	err := query.Offset(offset).Limit(pageSize).Find(&people).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
+		log.Printf("Error filtering people: %v", err)
 		return nil, err
 	}
 
+	log.Printf("Filtered people: %v", people)
 	return people, nil
 }

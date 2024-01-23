@@ -14,15 +14,19 @@ import (
 func main() {
 	err := godotenv.Load("./internal/config/.env")
 	if err != nil {
-		log.Fatal("Error loading .env")
+		log.Fatal("Error loading .env: ", err)
 	}
 
 	config.Init()
 	db.InitDB()
 
 	router := mux.NewRouter()
-
 	routes.InitRoutes(router)
 
-	log.Fatal(http.ListenAndServe(":8080", router))
+	addr := ":8080"
+	log.Printf("Server is starting on %s", addr)
+	err = http.ListenAndServe(addr, router)
+	if err != nil {
+		log.Fatalf("Error starting server: %s", err)
+	}
 }
